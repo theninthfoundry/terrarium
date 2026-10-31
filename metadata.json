@@ -1,0 +1,6 @@
+{
+  "name": "Terrarium",
+  "description": "Software change intelligence and mutation-validated test impact analysis observatory.",
+  "permissions": [],
+  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
