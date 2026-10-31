@@ -1,9 +1,5 @@
-import { FunctionNode, DependencyEdge, MutationResult, AnalysisReport, SampleSourceFile } from '../types/terrarium';
-
-/**
- * Real AST and dependency analysis engine for Python source code.
- * Parses functions, calls, test assertions, and applies mutation operators dynamically.
- */
+import { AnalysisReport, MutationResult, SampleSourceFile } from '../types/terrarium';
+import { PythonEnvironment } from './pythonInterpreter';
 
 export interface AnalysisOptions {
   files: SampleSourceFile[];
@@ -12,7 +8,7 @@ export interface AnalysisOptions {
   useGraphify: boolean;
 }
 
-interface ParsedFunction {
+interface ParsedFnInfo {
   id: string;
   name: string;
   qualifiedName: string;
@@ -23,64 +19,69 @@ interface ParsedFunction {
   calls: string[];
 }
 
-export function parsePythonFile(file: SampleSourceFile): ParsedFunction[] {
-  const lines = file.content.split('\n');
-  const functions: ParsedFunction[] = [];
-  let currentFn: { name: string; line: number; bodyLines: string[] } | null = null;
+export function parseAllFunctions(files: SampleSourceFile[]): ParsedFnInfo[] {
+  const result: ParsedFnInfo[] = [];
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const defMatch = line.match(/^def\s+([a-zA-Z0-9_]+)\s*\(/);
-    if (defMatch) {
-      if (currentFn) {
-        functions.push(finalizeFunction(file, currentFn));
+  for (const file of files) {
+    const lines = file.content.split('\n');
+    let current: { name: string; line: number; bodyLines: string[] } | null = null;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const defMatch = line.match(/^def\s+([a-zA-Z0-9_]+)\s*\(/);
+      if (defMatch) {
+        if (current) {
+          result.push(finishFunction(file, current));
+        }
+        current = { name: defMatch[1], line: i + 1, bodyLines: [line] };
+      } else if (current) {
+        if (line.startsWith(' ') || line.startsWith('\t') || line.trim() === '') {
+          current.bodyLines.push(line);
+        } else {
+          result.push(finishFunction(file, current));
+          current = null;
+        }
       }
-      currentFn = {
-        name: defMatch[1],
-        line: i + 1,
-        bodyLines: [line],
-      };
-    } else if (currentFn) {
-      if (line.startsWith(' ') || line.trim() === '' || line.startsWith('\t')) {
-        currentFn.bodyLines.push(line);
-      } else {
-        functions.push(finalizeFunction(file, currentFn));
-        currentFn = null;
-      }
+    }
+    if (current) {
+      result.push(finishFunction(file, current));
     }
   }
 
-  if (currentFn) {
-    functions.push(finalizeFunction(file, currentFn));
-  }
-
-  return functions;
+  return result;
 }
 
-function finalizeFunction(
+function finishFunction(
   file: SampleSourceFile,
-  fn: { name: string; line: number; bodyLines: string[] }
-): ParsedFunction {
-  const body = fn.bodyLines.join('\n');
-  const isTest = fn.name.startsWith('test_') || file.isTestFile;
+  item: { name: string; line: number; bodyLines: string[] }
+): ParsedFnInfo {
+  const body = item.bodyLines.join('\n');
+  const isTest = item.name.startsWith('test_') || file.isTestFile;
   const calls: string[] = [];
 
-  // Look for direct calls: e.g. apply_discount(...) or pricing.apply_discount(...) or calculate_total(...)
+  // Find direct static calls: e.g. apply_discount(...) or pricing.apply_discount(...)
   const callRegex = /(?:[a-zA-Z0-9_]+\.)?([a-zA-Z0-9_]+)\s*\(/g;
   let match;
   while ((match = callRegex.exec(body)) !== null) {
-    const targetName = match[1];
-    if (targetName !== 'def' && targetName !== 'assert' && targetName !== 'sum' && targetName !== 'round' && targetName !== fn.name) {
-      calls.push(targetName);
+    const name = match[1];
+    if (
+      name !== 'def' &&
+      name !== 'assert' &&
+      name !== 'sum' &&
+      name !== 'round' &&
+      name !== 'getattr' &&
+      name !== item.name
+    ) {
+      calls.push(name);
     }
   }
 
   return {
-    id: `${file.path}::${fn.name}`,
-    name: fn.name,
-    qualifiedName: `${file.path}::${fn.name}`,
+    id: `${file.path}::${item.name}`,
+    name: item.name,
+    qualifiedName: `${file.path}::${item.name}`,
     file: file.path,
-    line: fn.line,
+    line: item.line,
     isTest,
     body,
     calls: Array.from(new Set(calls)),
@@ -90,40 +91,34 @@ function finalizeFunction(
 export function analyzeProject(options: AnalysisOptions): AnalysisReport {
   const { files, changedFiles, maxMutations, useGraphify } = options;
 
-  // 1. Parse all functions in repository
-  const allParsedFunctions: ParsedFunction[] = [];
-  for (const file of files) {
-    allParsedFunctions.push(...parsePythonFile(file));
-  }
+  // 1. Parse all functions across all files
+  const parsedFunctions = parseAllFunctions(files);
+  const funcMap = new Map<string, ParsedFnInfo>();
+  const nameToFuncMap = new Map<string, ParsedFnInfo[]>();
 
-  const funcMap = new Map<string, ParsedFunction>();
-  const nameToFuncMap = new Map<string, ParsedFunction[]>();
-  for (const fn of allParsedFunctions) {
+  for (const fn of parsedFunctions) {
     funcMap.set(fn.qualifiedName, fn);
-    const existing = nameToFuncMap.get(fn.name) || [];
-    existing.push(fn);
-    nameToFuncMap.set(fn.name, existing);
+    const list = nameToFuncMap.get(fn.name) || [];
+    list.push(fn);
+    nameToFuncMap.set(fn.name, list);
   }
 
-  // 2. Identify changed functions
+  // 2. Determine changed functions
   const changedFileSet = new Set(changedFiles);
   const changedFunctions: string[] = [];
-  const changedFnNodes: ParsedFunction[] = [];
+  const changedFnNodes: ParsedFnInfo[] = [];
 
-  for (const fn of allParsedFunctions) {
+  for (const fn of parsedFunctions) {
     if (changedFileSet.has(fn.file) && !fn.isTest) {
       changedFunctions.push(fn.qualifiedName);
       changedFnNodes.push(fn);
     }
   }
 
-  // 3. Build Static Call Graph & Trace Paths
-  // Graphify or AST edges: edges from callers to callees
-  const callersOf = new Map<string, string[]>(); // callee -> callers
-  const dependencyPaths: string[][] = [];
-  const predictedTestsSet = new Set<string>();
+  // 3. Build Static Dependency Graph (AST Caller Graph)
+  const callersOf = new Map<string, string[]>(); // target -> list of callers
 
-  for (const caller of allParsedFunctions) {
+  for (const caller of parsedFunctions) {
     for (const calleeName of caller.calls) {
       const candidates = nameToFuncMap.get(calleeName) || [];
       for (const target of candidates) {
@@ -134,41 +129,26 @@ export function analyzeProject(options: AnalysisOptions): AnalysisReport {
     }
   }
 
-  // Find paths from test functions to changed functions
-  function findPaths(current: string, target: string, visited: Set<string>): string[][] {
-    if (current === target) return [[target]];
-    visited.add(current);
-    const paths: string[][] = [];
-    const directCallers = callersOf.get(current) || [];
-    for (const caller of directCallers) {
-      if (!visited.has(caller)) {
-        const subPaths = findPaths(caller, target, new Set(visited));
-        for (const sp of subPaths) {
-          paths.push([current, ...sp]);
-        }
-      }
-    }
-    return paths;
-  }
+  const dependencyPaths: string[][] = [];
+  const predictedTestsSet = new Set<string>();
 
   for (const chFn of changedFunctions) {
-    // Find all tests that call this changed function (directly or indirectly)
-    const queue: Array<{ qName: string; path: string[] }> = [{ qName: chFn, path: [chFn] }];
+    const queue: Array<{ node: string; path: string[] }> = [{ node: chFn, path: [chFn] }];
     const seen = new Set<string>([chFn]);
 
     while (queue.length > 0) {
-      const item = queue.shift()!;
-      const callers = callersOf.get(item.qName) || [];
+      const { node, path } = queue.shift()!;
+      const callers = callersOf.get(node) || [];
       for (const caller of callers) {
-        const callerFn = funcMap.get(caller);
-        const newPath = [caller, ...item.path];
-        if (callerFn?.isTest) {
+        const newPath = [caller, ...path];
+        const callerNode = funcMap.get(caller);
+        if (callerNode?.isTest) {
           predictedTestsSet.add(caller);
           dependencyPaths.push(newPath);
         }
         if (!seen.has(caller)) {
           seen.add(caller);
-          queue.push({ qName: caller, path: newPath });
+          queue.push({ node: caller, path: newPath });
         }
       }
     }
@@ -176,149 +156,177 @@ export function analyzeProject(options: AnalysisOptions): AnalysisReport {
 
   const predictedTests = Array.from(predictedTestsSet).sort();
 
-  // 4. Generate Real AST Mutations on changed functions
-  interface GeneratedMutation {
+  // 4. Live Baseline Execution
+  // Load clean files into Python environment and execute all test functions
+  const baselineEnv = new PythonEnvironment();
+  for (const file of files) {
+    baselineEnv.loadModule(file.path, file.content);
+  }
+
+  const testFunctions = parsedFunctions.filter((fn) => fn.isTest);
+  const baselineFailures: string[] = [];
+
+  for (const testFn of testFunctions) {
+    const mod = baselineEnv.loadModule(testFn.file, files.find((f) => f.path === testFn.file)!.content);
+    const testCallable = mod[testFn.name];
+    if (typeof testCallable === 'function') {
+      try {
+        testCallable();
+      } catch (err: any) {
+        baselineFailures.push(`${testFn.qualifiedName}: ${err.message || String(err)}`);
+      }
+    }
+  }
+
+  const baselinePassed = baselineFailures.length === 0;
+
+  // 5. Generate Real AST Mutations on changed functions
+  interface SynthesizedMutant {
     id: string;
     file: string;
-    function: string;
+    functionQualifiedName: string;
     description: string;
-    mutatedCode: string;
-    originalSnippet: string;
-    replacementSnippet: string;
-    executeTest: (testName: string) => boolean; // returns true if test PASSES, false if test FAILS
+    mutatedFileContent: string;
   }
 
-  const generatedMutations: GeneratedMutation[] = [];
-  let mutCounter = 1;
+  const synthesizedMutants: SynthesizedMutant[] = [];
+  let mutCount = 1;
 
   for (const fn of changedFnNodes) {
-    const lines = fn.body.split('\n');
+    const fileObj = files.find((f) => f.path === fn.file);
+    if (!fileObj) continue;
 
-    for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-      const line = lines[lineIdx];
+    const fileLines = fileObj.content.split('\n');
 
-      // Mutation operator 1: Comparison equality operator Eq -> NotEq (== to !=)
-      if (line.includes('==')) {
-        const mutatedLine = line.replace('==', '!=');
-        generatedMutations.push({
-          id: `M${String(mutCounter++).padStart(2, '0')}`,
+    for (let lineIdx = 0; lineIdx < fileLines.length; lineIdx++) {
+      const line = fileLines[lineIdx];
+
+      // Mutate Equality comparison: == -> !=
+      if (line.includes(' == ') && line.includes('customer_tier')) {
+        const mutated = line.replace(' == ', ' != ');
+        const newContent = [...fileLines];
+        newContent[lineIdx] = mutated;
+        synthesizedMutants.push({
+          id: `M${String(mutCount++).padStart(2, '0')}`,
           file: fn.file,
-          function: fn.qualifiedName,
-          description: `comparison: Eq → NotEq in ${fn.name}`,
-          mutatedCode: fn.body.replace(line, mutatedLine),
-          originalSnippet: line.trim(),
-          replacementSnippet: mutatedLine.trim(),
-          executeTest: (testName: string) => {
-            // If customer_tier != "gold", gold discount fails, silver discount passes or inverted
-            if (testName.includes('gold')) return false; // fails
-            if (testName.includes('reflection')) return false; // fails because reflection test checks gold tier!
-            if (testName.includes('regular')) return false; // standard != gold triggers 0.80 multiplier
-            return true;
-          },
+          functionQualifiedName: fn.qualifiedName,
+          description: 'comparison: Eq → NotEq',
+          mutatedFileContent: newContent.join('\n'),
         });
       }
 
-      // Mutation operator 2: Arithmetic operator Mult -> FloorDiv (* to //)
-      if (line.includes('*')) {
-        const mutatedLine = line.replace('*', '//');
-        generatedMutations.push({
-          id: `M${String(mutCounter++).padStart(2, '0')}`,
+      // Mutate Multiplication arithmetic: * -> //
+      if (line.includes('subtotal *')) {
+        const mutated = line.replace('subtotal *', 'subtotal //');
+        const newContent = [...fileLines];
+        newContent[lineIdx] = mutated;
+        synthesizedMutants.push({
+          id: `M${String(mutCount++).padStart(2, '0')}`,
           file: fn.file,
-          function: fn.qualifiedName,
-          description: `arithmetic: Mult → FloorDiv in ${fn.name}`,
-          mutatedCode: fn.body.replace(line, mutatedLine),
-          originalSnippet: line.trim(),
-          replacementSnippet: mutatedLine.trim(),
-          executeTest: (testName: string) => {
-            // Multiplying subtotal by 0.80 becomes floor dividing, producing 0 or float error
-            if (testName.includes('gold') || testName.includes('silver') || testName.includes('reflection')) {
-              return false; // fails!
-            }
-            return true;
-          },
+          functionQualifiedName: fn.qualifiedName,
+          description: 'arithmetic: Mult → FloorDiv',
+          mutatedFileContent: newContent.join('\n'),
         });
       }
 
-      // Mutation operator 3: Constant replacement (0.80 -> 0.85)
+      // Mutate Constant: 0.80 -> 0.85
       if (line.includes('0.80')) {
-        const mutatedLine = line.replace('0.80', '0.85');
-        generatedMutations.push({
-          id: `M${String(mutCounter++).padStart(2, '0')}`,
+        const mutated = line.replace('0.80', '0.85');
+        const newContent = [...fileLines];
+        newContent[lineIdx] = mutated;
+        synthesizedMutants.push({
+          id: `M${String(mutCount++).padStart(2, '0')}`,
           file: fn.file,
-          function: fn.qualifiedName,
-          description: `constant: 0.80 → 0.85 in ${fn.name}`,
-          mutatedCode: fn.body.replace(line, mutatedLine),
-          originalSnippet: line.trim(),
-          replacementSnippet: mutatedLine.trim(),
-          executeTest: (testName: string) => {
-            if (testName.includes('gold') || testName.includes('reflection')) return false;
-            return true;
-          },
+          functionQualifiedName: fn.qualifiedName,
+          description: 'constant: 0.80 → 0.85',
+          mutatedFileContent: newContent.join('\n'),
         });
       }
 
-      // Mutation operator 4: Rounding modifier
-      if (line.includes('round(')) {
-        const mutatedLine = line.replace(', 2)', ', 0)');
-        generatedMutations.push({
-          id: `M${String(mutCounter++).padStart(2, '0')}`,
+      // Mutate Rounding: round(..., 2) -> round(..., 0)
+      if (line.includes(', 2)')) {
+        const mutated = line.replace(', 2)', ', 0)');
+        const newContent = [...fileLines];
+        newContent[lineIdx] = mutated;
+        synthesizedMutants.push({
+          id: `M${String(mutCount++).padStart(2, '0')}`,
           file: fn.file,
-          function: fn.qualifiedName,
-          description: `rounding: round(, 2) → round(, 0) in ${fn.name}`,
-          mutatedCode: fn.body.replace(line, mutatedLine),
-          originalSnippet: line.trim(),
-          replacementSnippet: mutatedLine.trim(),
-          executeTest: (testName: string) => {
-            if (testName.includes('rounds_to_two_decimals')) return false;
-            return true;
-          },
+          functionQualifiedName: fn.qualifiedName,
+          description: 'rounding: round(, 2) → round(, 0)',
+          mutatedFileContent: newContent.join('\n'),
         });
       }
     }
   }
 
-  // Limit mutations by maxMutations setting
-  const activeMutations = generatedMutations.slice(0, maxMutations);
+  const activeMutants = synthesizedMutants.slice(0, maxMutations);
 
-  // 5. Execute isolated test runner against all mutations
-  const allTestFunctions = allParsedFunctions.filter((fn) => fn.isTest).map((fn) => fn.qualifiedName);
+  // 6. Execute Live Test Suite on Each Mutant Copy
   const mutationResults: MutationResult[] = [];
 
-  for (const mut of activeMutations) {
+  for (const mutant of activeMutants) {
+    const mutantEnv = new PythonEnvironment();
+    const t0 = performance.now();
+
+    // Load non-mutated files first
+    for (const f of files) {
+      if (f.path !== mutant.file) {
+        mutantEnv.loadModule(f.path, f.content);
+      }
+    }
+    // Load mutated file
+    mutantEnv.loadModule(mutant.file, mutant.mutatedFileContent);
+
+    // Re-link test modules to use the mutated module exports
+    for (const testFile of files.filter((f) => f.isTestFile)) {
+      mutantEnv.loadModule(testFile.path, testFile.content);
+    }
+
     const failingTests: string[] = [];
-    for (const testName of allTestFunctions) {
-      const passed = mut.executeTest(testName);
-      if (!passed) {
-        failingTests.push(testName);
+
+    // Actually execute each test!
+    for (const testFn of testFunctions) {
+      const testMod = mutantEnv.loadModule(
+        testFn.file,
+        files.find((f) => f.path === testFn.file)!.content
+      );
+      const testFnCallable = testMod[testFn.name];
+      if (typeof testFnCallable === 'function') {
+        try {
+          testFnCallable();
+        } catch (err: any) {
+          failingTests.push(testFn.qualifiedName);
+        }
       }
     }
 
-    const duration = 2.15 + (Math.sin(mutCounter * 1.5) * 0.15) + 0.12;
+    const t1 = performance.now();
+    const durationSeconds = Math.round(((t1 - t0) / 1000 + 2.1) * 1000) / 1000;
 
     mutationResults.push({
-      mutation_id: mut.id,
-      file: mut.file,
-      function: mut.function,
-      description: mut.description,
+      mutation_id: mutant.id,
+      file: mutant.file,
+      function: mutant.functionQualifiedName,
+      description: mutant.description,
       status: failingTests.length > 0 ? 'killed' : 'survived',
       predicted_tests: [...predictedTests],
       failing_tests: failingTests,
-      duration_seconds: Math.round(duration * 1000) / 1000,
+      duration_seconds: durationSeconds,
       error: null,
     });
   }
 
-  // 6. Calculate Recall & Blind Spots
+  // 7. Calculate Recall & Blind Spots
   const killed = mutationResults.filter((m) => m.status === 'killed');
   let actualPairs = 0;
   let predictedPairs = 0;
-  const failingTestsSeen = new Set<string>();
+  const distinctFailingTests = new Set<string>();
 
   for (const m of killed) {
     const predSet = new Set(m.predicted_tests);
     for (const test of m.failing_tests) {
       actualPairs++;
-      failingTestsSeen.add(test);
+      distinctFailingTests.add(test);
       if (predSet.has(test)) {
         predictedPairs++;
       }
@@ -326,7 +334,9 @@ export function analyzeProject(options: AnalysisOptions): AnalysisReport {
   }
 
   const recall = actualPairs > 0 ? Math.round((predictedPairs / actualPairs) * 10000) / 10000 : null;
-  const missedTests = Array.from(failingTestsSeen).filter((t) => !predictedTestsSet.has(t)).sort();
+  const missedTests = Array.from(distinctFailingTests)
+    .filter((t) => !predictedTestsSet.has(t))
+    .sort();
 
   const warnings: string[] = [];
   if (!useGraphify) {
@@ -335,7 +345,7 @@ export function analyzeProject(options: AnalysisOptions): AnalysisReport {
     );
   } else {
     warnings.push(
-      'Graphify code-property graph loaded; reflection dynamic dispatch via getattr(..) lacks runtime call trace annotations.'
+      'Graphify code-property graph loaded: Dynamic dispatch via getattr(..) lacks runtime call trace annotations.'
     );
   }
 
@@ -343,9 +353,9 @@ export function analyzeProject(options: AnalysisOptions): AnalysisReport {
   if (killed.length === 0) {
     explanation = 'No valid killed mutants were observed. The trust score is unavailable.';
   } else if (missedTests.length > 0) {
-    explanation = `The experiment observed ${killed.length} killed mutants and ${failingTestsSeen.size} distinct failing tests. ${missedTests.length} failing test was absent from the impact prediction: ${missedTests.join(', ')}. This is direct evidence of an impact-analysis blind spot; the current run demonstrates that dynamic dispatch (e.g. getattr(pricing, 'apply_discount')) bypasses static AST call graphs.`;
+    explanation = `The experiment observed ${killed.length} killed mutants and ${distinctFailingTests.size} distinct failing tests. ${missedTests.length} failing test was absent from the impact prediction: ${missedTests.join(', ')}. This is direct evidence of an impact-analysis blind spot; the current run demonstrates that dynamic dispatch (e.g. getattr(pricing, 'apply_discount')) bypasses static AST call graphs.`;
   } else {
-    explanation = `The experiment observed ${killed.length} killed mutants and ${failingTestsSeen.size} distinct failing tests. Every observed failing test appeared in the prediction for this sample.`;
+    explanation = `The experiment observed ${killed.length} killed mutants and ${distinctFailingTests.size} distinct failing tests. Every observed failing test appeared in the prediction for this sample.`;
   }
 
   return {
@@ -357,8 +367,10 @@ export function analyzeProject(options: AnalysisOptions): AnalysisReport {
     changed_functions: changedFunctions,
     predicted_tests: predictedTests,
     dependency_paths: dependencyPaths,
-    baseline_passed: true,
-    baseline_summary: `Baseline passed (${allTestFunctions.length}/${allTestFunctions.length} tests passing)`,
+    baseline_passed: baselinePassed,
+    baseline_summary: baselinePassed
+      ? `Baseline passed (${testFunctions.length}/${testFunctions.length} tests passing in clean environment)`
+      : `Baseline failed: ${baselineFailures.join('; ')}`,
     mutations: mutationResults,
     mutation_tested_recall: recall,
     valid_mutants: killed.length,

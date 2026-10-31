@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AnalysisReport, ExperimentParams, SampleSourceFile } from './types/terrarium';
-import { SAMPLE_FILES, INITIAL_DEMO_REPORT } from './data/sampleRepo';
+import { SAMPLE_FILES } from './data/sampleRepo';
 import { analyzeProject } from './engine/astAnalyzer';
 import { NavigationRail } from './components/NavigationRail';
 import { TopBar } from './components/TopBar';
@@ -15,7 +15,14 @@ import { Toast } from './components/Toast';
 
 export function App() {
   const [files, setFiles] = useState<SampleSourceFile[]>(SAMPLE_FILES);
-  const [report, setReport] = useState<AnalysisReport | null>(INITIAL_DEMO_REPORT);
+  const [report, setReport] = useState<AnalysisReport | null>(() =>
+    analyzeProject({
+      files: SAMPLE_FILES,
+      changedFiles: ['src/pricing.py'],
+      maxMutations: 4,
+      useGraphify: false,
+    })
+  );
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<string>('observatory');
