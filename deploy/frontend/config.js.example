@@ -1,0 +1,2 @@
+// Replace with the public HTTPS URL of the FastAPI service before upload.
+window.TERRARIUM_API_BASE = 'https://YOUR-TERRARIUM-API.onrender.com';

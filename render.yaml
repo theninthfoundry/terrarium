@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: terrarium-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn terrarium.api:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: TERRARIUM_ALLOW_REPOSITORIES
+        value: "0"
+      - key: TERRARIUM_ALLOWED_ORIGINS
+        sync: false

@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.env
+*.py[cod]
+*.log
+.terrarium/
+graphify-out/
+.DS_Store
+*.egg-info/
+dist/
+build/
