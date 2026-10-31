@@ -1,0 +1,1322 @@
+I agree with your concern. The screenshot looks polished at first glance, but a dashboard full of numbers and panels is not enough. **TERRARIUM needs to behave like an actual software intelligence platform, not a static dashboard pretending to be one.**
+
+The important distinction: every number, chart, test result, mutation, dependency path and blind spot must come from a real execution of the engine. Clicking a section must open a working feature, not another decorative screen.
+
+I'd rebuild it in Google AI Studio in controlled stages, using the existing `theninthfoundry/terrarium` repository as the source of truth.
+
+One important limitation: no prompt can guarantee a perfect build. The prompts below are designed to force the AI to inspect the code, implement it incrementally, run tests, expose failures and verify the result instead of simply generating convincing-looking UI.
+
+# 1. The product we are actually building
+
+## TERRARIUM — Software Change Intelligence
+
+**See what breaks. Know how much to trust.**
+
+TERRARIUM should answer five questions:
+
+1. What did this code change affect?
+2. Which tests should have caught the change?
+3. Which tests actually caught it?
+4. What did the tests fail to detect?
+5. How confident should we be in the prediction?
+
+The product should have four genuinely functional workspaces:
+
+| Workspace    | Actual functionality                                                     |
+| ------------ | ------------------------------------------------------------------------ |
+| Observatory  | Live overview of repository analysis, test impact and mutation results   |
+| Experiments  | Run, inspect, compare and replay mutation experiments                    |
+| Blind Spots  | Find surviving mutations, missed failures and untested code paths        |
+| Inspect Code | Explore source files, dependencies, call paths and predicted test impact |
+
+The screenshot can remain a visual reference, but the implementation should be more complete, interactive and data-driven.
+
+## The architecture I recommend
+
+```text
+                   TERRARIUM
+                       |
+             Repository Workspace
+                       |
+              Repository Scanner
+                       |
+              Source Code Parser
+                       |
+                AST Analysis
+                       |
+              Dependency Graph
+                       |
+             Change Impact Engine
+                       |
+              Test Selection Engine
+                       |
+             Mutation Experimenter
+                       |
+              Actual Test Execution
+                       |
+               Evidence Collector
+                       |
+             Deterministic Analyzer
+                       |
+              Evidence Database
+                       |
+                API Layer
+                       |
+                Web Interface
+                       |
+             Optional Gemini AI
+```
+
+**Critical architectural decision:** Gemini must not determine whether a mutation was killed, whether a test failed, or whether a dependency exists. Those are deterministic engineering facts. Gemini can explain the evidence, identify patterns and help users understand results.
+
+---
+
+# 2. Master Prompt 1 — Project Archaeology and Full Audit
+
+Start by opening Google AI Studio and connecting or providing the existing GitHub repository.
+
+Repository: [theninthfoundry/terrarium](https://github.com/theninthfoundry/terrarium?utm_source=chatgpt.com)
+
+Do not ask it to immediately redesign the UI. First make it understand the actual project.
+
+Paste this:
+
+You are the principal software architect, senior Python engineer, frontend engineer, security engineer and QA lead responsible for completing TERRARIUM.
+
+PROJECT:
+TERRARIUM — Software Change Intelligence.
+
+GitHub repository:
+[https://github.com/theninthfoundry/terrarium](https://github.com/theninthfoundry/terrarium)
+
+PRODUCT PROMISE:
+"See what breaks. Know how much to trust."
+
+OBJECTIVE:
+
+Transform the existing repository into a complete, working, production-quality software change intelligence platform.
+
+This is an existing project. Do not discard it and generate an unrelated replacement.
+
+PHASE 1 — COMPLETE PROJECT AUDIT
+
+Before modifying anything:
+
+1. Inspect the entire repository.
+2. Read every relevant Python source file.
+3. Inspect the existing FastAPI implementation.
+4. Inspect the mutation engine.
+5. Inspect the AST and dependency analysis implementation.
+6. Inspect the test-selection logic.
+7. Inspect existing tests and fixtures.
+8. Inspect the frontend HTML, CSS and JavaScript.
+9. Inspect package configuration and deployment configuration.
+10. Identify existing functionality, incomplete functionality, bugs, duplicate implementations and dead code.
+
+Create a project capability matrix:
+
+| Feature | Existing implementation | Actual working? | Evidence | Required work |
+| ------- | ----------------------- | --------------- | -------- | ------------- |
+
+Do not mark anything working merely because a button or function exists.
+
+PHASE 2 — ARCHITECTURAL VALIDATION
+
+Determine:
+
+* How repository scanning works.
+* How changed files are identified.
+* How AST parsing works.
+* How dependencies are extracted.
+* How test impact is predicted.
+* How mutations are generated.
+* How tests are executed.
+* How mutation outcomes are classified.
+* How missed tests are calculated.
+* How reports are generated.
+
+Validate the MTIR calculation.
+
+MTIR must be calculated using:
+
+| Predicted test × mutation pairs intersect actual failing test × mutation pairs |
+divided by
+| Actual failing test × mutation pairs |
+
+Do not replace this with an arbitrary score or a visually attractive percentage.
+
+Preserve the distinctions between:
+
+KILLED
+SURVIVED
+INVALID
+INCOMPETENT
+INFRA_ERROR
+
+Do not treat infrastructure errors as successful mutation kills.
+
+PHASE 3 — DATA INTEGRITY
+
+Identify every hardcoded:
+
+* Metric
+* Percentage
+* Test count
+* Mutation result
+* Repository statistic
+* File count
+* Dependency count
+* Experiment history item
+* Blind spot
+* Chart value
+* AI explanation
+
+Classify each as:
+A. Legitimate configuration or static metadata.
+B. Demonstration fixture.
+C. Fake result that must be removed.
+
+All experiment results and metrics must originate from real engine execution.
+
+PHASE 4 — SECURITY AUDIT
+
+Inspect repository path handling, subprocess execution, file access, uploaded content, authentication, API authorization, temporary files and deployment assumptions.
+
+Identify whether arbitrary repository execution is safe.
+
+Do not claim arbitrary untrusted code execution is sandboxed unless you can demonstrate the isolation.
+
+PHASE 5 — REQUIRED OUTPUT
+
+Before implementation, produce:
+
+1. Existing architecture diagram.
+2. Current feature inventory.
+3. Defect inventory.
+4. Security risks.
+5. Data-flow diagram.
+6. Recommended target architecture.
+7. Database/storage requirements.
+8. API contract.
+9. Frontend restructuring plan.
+10. Prioritized implementation plan.
+
+IMPORTANT:
+
+Do not fabricate findings.
+Do not modify files during this audit.
+Do not hide missing functionality.
+Do not replace existing working code without explaining why.
+
+Finish by identifying the highest-risk architectural problems that must be solved before redesigning the interface.
+
+**Why this first?** We don't want AI Studio to overwrite the existing mutation engine just because it finds the frontend easier to regenerate.
+
+---
+
+# 3. Master Prompt 2 — Build the Actual Intelligence Engine
+
+This is the most important part of TERRARIUM.
+
+The UI is secondary. If the engine produces incorrect results, the entire product is misleading.
+
+Continue working on the existing TERRARIUM repository.
+
+You are now responsible for implementing and hardening the core software change intelligence engine.
+
+DO NOT begin with visual design.
+
+Your priority is correctness, reproducibility, traceability and real execution.
+
+OBJECTIVE:
+
+A user should be able to select a repository, identify changed files, run an experiment and receive evidence-backed test impact predictions and mutation results.
+
+1. REPOSITORY INGESTION
+
+Implement a repository workspace system.
+
+Support:
+
+* Bundled demonstration repository.
+* Local repository directory in trusted environments.
+* Repository ZIP ingestion, if supported by the deployment architecture.
+* Repository metadata.
+* Source file inventory.
+* Language detection.
+* Repository structure inspection.
+
+Requirements:
+
+* Never trust uploaded filenames or paths.
+* Prevent path traversal.
+* Reject unsafe archive entries.
+* Enforce configurable file and size limits.
+* Exclude generated files, virtual environments and dependency folders.
+* Do not silently ignore parsing failures.
+
+2. SOURCE ANALYSIS
+
+Implement or improve AST-based source analysis.
+
+Extract:
+
+* Functions.
+* Classes.
+* Imports.
+* Function calls.
+* References.
+* Module relationships.
+* Test functions.
+* Test-to-source relationships.
+
+Represent extracted relationships using explicit graph nodes and edges.
+
+Every dependency relationship must include:
+
+* Source file.
+* Target file or symbol.
+* Relationship type.
+* Extraction method.
+* Confidence or certainty classification.
+
+Never invent dependency edges.
+
+3. CHANGE DETECTION
+
+Allow the user to specify changed files or compare repository revisions.
+
+Where Git metadata is available, support:
+
+* Base revision.
+* Target revision.
+* Changed files.
+* Added files.
+* Removed files.
+* Modified symbols.
+
+Display the actual diff.
+
+4. TEST IMPACT PREDICTION
+
+Build the impacted test set from extracted dependency relationships.
+
+Show:
+
+* Predicted tests.
+* Why each test was selected.
+* Relevant dependency path.
+* Relationship types.
+* Unresolved relationships.
+* Uncertain predictions.
+
+The user must be able to inspect the evidence behind every prediction.
+
+5. MUTATION ENGINE
+
+Implement controlled mutation operators appropriate to the supported language.
+
+For Python, investigate and support operators such as:
+
+* Arithmetic operator replacement.
+* Comparison operator replacement.
+* Boolean operator replacement.
+* Constant replacement.
+* Conditional boundary changes.
+* Return-value changes.
+
+Each mutation must have:
+
+* Unique identifier.
+* Source file.
+* Source location.
+* Original expression.
+* Mutated expression.
+* Operator.
+* Execution status.
+* Resulting test outcomes.
+* Evidence.
+
+Do not produce syntactically invalid mutants and call them killed.
+
+6. TEST EXECUTION
+
+Execute tests using a controlled execution environment.
+
+Capture:
+
+* Command.
+* Exit code.
+* Duration.
+* Standard output.
+* Standard error.
+* Failing test identifiers.
+* Timeout.
+* Infrastructure errors.
+
+Prevent uncontrolled subprocess execution.
+
+Do not allow a public deployment to execute arbitrary user-provided repository code without an appropriately isolated execution environment.
+
+7. MUTATION CLASSIFICATION
+
+Implement the outcome classifications:
+
+KILLED:
+A valid mutant causes an expected test failure.
+
+SURVIVED:
+A valid mutant completes execution without being detected.
+
+INVALID:
+The mutation is invalid before meaningful test execution.
+
+INCOMPETENT:
+The mutation does not affect observable behavior in the experiment.
+
+INFRA_ERROR:
+The experiment could not produce a reliable result because of an infrastructure or execution problem.
+
+Document the precise classification rules.
+
+8. EVIDENCE AND METRICS
+
+Calculate every metric from persisted experiment evidence.
+
+Include:
+
+* Total mutants generated.
+* Valid mutants.
+* Killed mutants.
+* Survived mutants.
+* Invalid mutants.
+* Incompetent mutants.
+* Infrastructure errors.
+* Predicted tests.
+* Actual failing tests.
+* Missed test failures.
+* MTIR.
+* Analysis duration.
+
+Never substitute example values for real values.
+
+If there is insufficient evidence, display:
+"Insufficient evidence."
+
+9. EXPERIMENT REPRODUCIBILITY
+
+Each experiment must have:
+
+* Experiment ID.
+* Repository revision.
+* Changed files.
+* Engine version.
+* Mutation configuration.
+* Test command.
+* Timestamp.
+* Environment information.
+* Raw execution evidence.
+* Calculated results.
+
+Allow an experiment to be inspected and replayed.
+
+A replay must create a new experiment record rather than silently changing historical evidence.
+
+10. TESTING
+
+Create deterministic fixtures for:
+
+* A mutation that should be killed.
+* A mutation that should survive.
+* An invalid mutation.
+* A test that fails before mutation.
+* An infrastructure timeout.
+* An unresolved dependency.
+* A missed test impact.
+* A clean baseline.
+
+Write automated tests for each case.
+
+Do not report success unless the tests actually execute and pass.
+
+DELIVERABLE:
+
+A working engine with documented interfaces, real outputs, deterministic tests and a clear explanation of known limitations.
+
+Preserve existing functionality where correct. Refactor only when necessary.
+
+---
+
+# 4. Master Prompt 3 — Build the Complete Product UI/UX
+
+Now we build the interface shown in your screenshot, but make every section meaningful.
+
+I recommend keeping the black-and-white visual identity. It already suits the product. The improvement should come from hierarchy, information density, interactions and clarity—not random gradients or decorative effects.
+
+![Image](https://images.openai.com/static-rsc-4/nOPd8efLT92GQPRA28j9y1t8IatjgjWFnTDH4MQDfAAtoYxASe1z0cxyos4TxifKBMDaOpv81NlmYcDITcjnbYHMGBysAhN_07PPnLBUIKpN-1pjWLAAlmYDEtoOe9R0yAD6EoJLQU1pKC88_6IioszXAh2pl854pFQeLaPK9E3Aw7umJ1l2F7soQ6O1dRo1?purpose=fullsize)
+
+![Image](https://images.openai.com/static-rsc-4/kUo-5b0eprrEQJNUFRq32ABXiM5gPfKDyvbRMqBmsUIKCgPs8KC8dyBsi3QcckvPTUWpP1OjyKmp2KMDTEoebVVSAoR9T_3tTsUSttUNeoIHTxhb1yCZAwQeiBqCfdPiTFazaIrj_HiiyKmVgRKmdEnMGoi0ITPCMBqB1fTxK704QUh3skWGjECjEWyiLAHr?purpose=fullsize)
+
+![Image](https://images.openai.com/static-rsc-4/7uD5JkSknvJq4wMeXaQOJ_S6LSaDNeJbGbz-sKlH5COZLNXeivchIzQYCyb9Kzmqua0pqPMmUW6774P0ki9rLDgAtPWoABZtjPtpzRTukAk9zvCN53GGPt2ELIC1mmQfzXZuuUcR3WArhVBYmWPWff2TrWg9ZK5zfcZberC0-EiID5HKiYjJ-StQ5oVNj4k3?purpose=fullsize)
+
+![Image](https://images.openai.com/static-rsc-4/UwBV6OtC5bYsQNIXZN61zEpx9bCmh09dyuFShKnyHjgEobExU4fs6iM_I8YPexx1HFkHSLP588CpuMOVz20PJF1_K4taZeN2wRXfV7I7iKzJ0GzdMI5oDIYEL0Wpgsbfz1KlxRx0w80u-yM3h_hl60dG-fnT_IjhuZaDwiQS01G_zblndtR_c1AMTeFYhM_n?purpose=fullsize)
+
+![Image](https://images.openai.com/static-rsc-4/r3C6t-AyzTsIsKJugcoLgTiPW_mtEiiDZJ-eiqanPcvq_1CcsRMnddHJIZV5dapGbM1VigMuoqORXll7Rz47XjE6uUQm6wfgMIDYjm6ANzgP3znj0-cvvGgM_LTSmvWS4TApqMs0_VdHn8qeO0G5R9hya_a9jYfeZw3pfLYSm0wBjprvqH6muJsmUV_LnVUI?purpose=fullsize)
+
+![Image](https://images.openai.com/static-rsc-4/Ttrt_9iAMiNjVB8MF07VejN54B0Sd5PeSTWwYjjh6sUFTIjH9Wqd5nT-p2xevtSQUz8LztXGMm4YF6oG3eBLaPJzQ6ix21W-DDD7K-ctnCwpFi1DBlhWfODG5BEtYkPJFQ19N7SFID2fuFyUYrQeBD7ZhAAEplYdbxcML3aeGZ3zzvOqMt8wOFaYo7aCtbz5?purpose=fullsize)
+
+![Image](https://images.openai.com/static-rsc-4/sVvAv-F8IBbyPWFxd5x0HVK1JGIupD1jhCp-VtNN1bUsWI4oswroTW0sJia-rZncmc3ZLbYUqlgX5---L6TFZ9DIjFnw5D0w-xaxLQTzCt4hpxx4VDlSvbUKOYCxRktw7qtTJEboEaB1RmKew9NTCR1bXPVF3lUbAPzOMIY4fV9VAVfHy6FYBXtY13Y7IcgC?purpose=fullsize)
+
+![Image](https://images.openai.com/static-rsc-4/7NlQ8fl3TSSdOMPuwRpMo5XwLB65_S4tTo1eHT83EYouTc2KXEvmDwlxhlYFk38zCn2B6jQ1E-YqgyJp_BGwNLmfQtBkOpXKlsYq7SlzFroexIkM7gkzaT5RH1gnFgU2VXu5KiPSZWpIOt3bLG-LhX_A1AjeKDkLbRtE-YigeIUhwZieZewa4k_-hDiEof8u?purpose=fullsize)
+
+![Image](https://images.openai.com/static-rsc-4/HIaJAkyQOUvshq31XENch3470gfPqdDKGXTNsk_v2dCfsNr11GZe03D-ycq1cNuJmUxoF25jq-loMP4dR5zEzFKhNCxPFNJclzCG4Cbc8Au7He7sXoeJUXPGkUxfTPD7LqG5vZ1aedvHpJjmbJosRYlqg8Jxmw2WtTUC_DCI2meMWcH9_X1yfmZ4-fdE_25B?purpose=fullsize)
+
+You are now the lead product designer and senior frontend engineer for TERRARIUM.
+
+Build a complete, polished, functional software intelligence interface using the existing project architecture.
+
+DESIGN DIRECTION:
+
+TERRARIUM should feel like a serious developer infrastructure product.
+
+Visual references:
+
+* Linear.
+* Vercel.
+* Sentry.
+* GitHub code review.
+* Professional observability tools.
+
+Preserve the existing black-and-white identity.
+
+DESIGN SYSTEM:
+
+* Near-black primary background.
+* Slightly lighter panel surfaces.
+* Thin, subtle borders.
+* White primary typography.
+* Muted gray secondary information.
+* Restrained blue for informational states.
+* Red for failures and missed tests.
+* Green for successful execution.
+* Amber for uncertainty and warnings.
+* Monospaced typography for code, IDs and technical metadata.
+* Clear spacing and consistent alignment.
+* Minimal animation.
+* Responsive desktop-first layout.
+
+Avoid:
+
+* Purple gradients.
+* Generic AI dashboard templates.
+* Decorative charts.
+* Fake metrics.
+* Unnecessary glassmorphism.
+* Excessive rounded cards.
+* Empty sections pretending to be features.
+
+APPLICATION STRUCTURE:
+
+Create four fully working workspaces.
+
+A. OBSERVATORY
+
+Purpose: Understand the current state of a repository and its latest experiment.
+
+Include:
+
+* Repository selector.
+* Current revision.
+* Changed files.
+* Latest experiment.
+* Mutation summary.
+* Test impact summary.
+* MTIR.
+* Missed test failures.
+* Dependency graph preview.
+* Recent experiment history.
+* Warnings and execution errors.
+
+Every value must come from the backend.
+
+Every metric must have a definition and an evidence view.
+
+Clicking a metric must navigate to the underlying records.
+
+B. EXPERIMENTS
+
+Purpose: Inspect and manage actual experiments.
+
+Include:
+
+* Experiment history.
+* Experiment status.
+* Start time.
+* Duration.
+* Repository revision.
+* Changed files.
+* Mutation count.
+* Outcome distribution.
+* MTIR.
+
+Create an experiment detail page.
+
+The detail page must show:
+
+* Execution timeline.
+* Mutation ledger.
+* Test execution results.
+* Raw evidence.
+* Logs.
+* Error messages.
+* Reproducibility metadata.
+
+Implement actual experiment comparison.
+
+Allow users to compare two experiments and identify changes in:
+
+* Predicted test surface.
+* Mutation outcomes.
+* Missed failures.
+* MTIR.
+* Execution duration.
+
+C. BLIND SPOTS
+
+Purpose: Identify weaknesses in test coverage and test-impact prediction.
+
+Include:
+
+* Surviving mutations.
+* Missed test failures.
+* Unresolved dependency relationships.
+* Untested functions.
+* Incomplete analysis.
+* Uncertain relationships.
+
+Every blind spot must be traceable to actual evidence.
+
+Each item should explain:
+
+1. What was missed.
+2. Where it occurred.
+3. Which experiment detected it.
+4. Why it matters.
+5. What evidence supports it.
+6. What the user should investigate.
+
+Never fabricate a blind spot to fill empty space.
+
+D. INSPECT CODE
+
+Purpose: Let developers understand how changes propagate through their codebase.
+
+Build:
+
+* File explorer.
+* Source code viewer.
+* Syntax highlighting.
+* Changed-file indicators.
+* Function and class navigation.
+* Dependency graph.
+* Call paths.
+* Predicted test relationships.
+* Mutation locations.
+
+When a user selects a function, show its known dependencies and related tests.
+
+When a user selects a test, show the source symbols and dependency paths associated with it.
+
+Make every graph node clickable.
+
+Provide useful empty states when analysis has not been performed.
+
+GLOBAL INTERACTIONS:
+
+Implement:
+
+* Repository switching.
+* Refresh.
+* Search.
+* Filtering.
+* Sorting.
+* Experiment execution.
+* Experiment detail navigation.
+* Copyable IDs.
+* Error notifications.
+* Loading states.
+* Confirmation for destructive actions.
+* Keyboard navigation.
+* Accessible controls.
+
+RUN EXPERIMENT FLOW:
+
+1. Select repository.
+2. Select or detect changed files.
+3. Review changes.
+4. Configure supported mutation limits.
+5. Review execution restrictions.
+6. Start experiment.
+7. Show actual progress if available.
+8. Display completed evidence.
+9. Navigate to results.
+
+Do not fake progress percentages.
+
+If the backend cannot provide progress, show a truthful running state.
+
+DATA INTEGRITY:
+
+Every visible metric must be linked to a real API response.
+
+Every button must perform an actual action.
+
+Every page must have a real route or a properly implemented state transition.
+
+Do not create buttons with placeholder click handlers.
+
+Do not use hardcoded result arrays.
+
+Do not generate fake activity histories.
+
+Do not create fake graphs.
+
+Use actual backend evidence.
+
+RESPONSIVENESS:
+
+Ensure the interface works on:
+
+* Desktop.
+* Laptop.
+* Tablet.
+* Mobile.
+
+The final product should look like professional developer infrastructure software, not a college project dashboard.
+
+Deliver the complete frontend implementation and a list of every functional interaction.
+
+---
+
+# 5. Master Prompt 4 — Gemini AI Integration
+
+This is where we make the product more distinctive.
+
+Gemini should not be a chatbot floating on the dashboard. It should be an **evidence interpreter**.
+
+For example, when TERRARIUM detects a surviving mutation, Gemini should explain why it matters using the actual source code, mutation and test evidence.
+
+Integrate Google Gemini into TERRARIUM as an optional evidence interpretation layer.
+
+The product must remain fully functional when Gemini is unavailable.
+
+IMPORTANT ARCHITECTURAL RULE:
+
+The deterministic TERRARIUM engine is the authority.
+
+Gemini must never:
+
+* Generate mutation outcomes.
+* Decide whether a test passed.
+* Invent dependency relationships.
+* Calculate authoritative metrics independently.
+* Modify experiment records.
+* Claim that code is safe without evidence.
+
+GEMINI FEATURES:
+
+1. EXPERIMENT EXPLANATION
+
+After an experiment completes, Gemini should receive a structured evidence package containing:
+
+* Repository metadata.
+* Changed files.
+* Predicted tests.
+* Dependency paths.
+* Mutation outcomes.
+* Missed test failures.
+* Relevant logs.
+* Engine limitations.
+
+Generate an explanation covering:
+
+* What happened.
+* What was detected.
+* What was missed.
+* Why the result matters.
+* Which evidence supports the conclusion.
+
+2. BLIND SPOT EXPLANATION
+
+For each surviving mutation or missed test, explain:
+
+* The mutated behavior.
+* Why existing tests did not detect it.
+* Which relevant tests were executed.
+* What additional test case could help.
+
+Clearly distinguish verified facts from hypotheses.
+
+3. CODE CHANGE REVIEW
+
+Allow developers to request an explanation of a changed function.
+
+Gemini should receive the actual diff and known dependency evidence.
+
+Return:
+
+* Change summary.
+* Potential impact.
+* Relevant tests.
+* Uncertainty.
+* Suggested investigation.
+
+Do not claim the entire repository was reviewed if only one file was provided.
+
+4. EXPERIMENT COMPARISON
+
+Explain differences between two completed experiments using their stored evidence.
+
+5. EVIDENCE REFERENCES
+
+Every explanation should reference:
+
+* Experiment ID.
+* File path.
+* Mutation ID.
+* Test ID.
+* Evidence record.
+
+Never generate fake evidence references.
+
+6. STRUCTURED OUTPUT
+
+Use validated structured JSON responses.
+
+Reject malformed responses.
+
+Keep the original deterministic results unchanged.
+
+7. GEMINI CONFIGURATION
+
+Use the official Google GenAI SDK.
+
+Read the API key from a server-side environment variable.
+
+Never expose the API key in frontend code.
+
+Support:
+
+* Missing API key.
+* Rate limits.
+* Timeouts.
+* API errors.
+* Invalid responses.
+
+Do not make the application dependent on Gemini.
+
+8. USER EXPERIENCE
+
+Add an Evidence Explanation panel to:
+
+* Experiment details.
+* Blind spot details.
+* Code inspection.
+
+Do not turn the entire application into a chatbot.
+
+The goal is to make engineering evidence easier to understand, not replace engineering evidence with AI-generated opinions.
+
+Deliver integration tests using mocked Gemini responses and verify that the deterministic engine works independently.
+
+---
+
+# 6. Master Prompt 5 — Storage, Backend and API Completion
+
+A serious product needs reliable experiment history. Refreshing the page should not erase results.
+
+Complete the TERRARIUM backend and persistence architecture.
+
+Do not assume the current in-memory application is sufficient for production.
+
+REQUIREMENTS:
+
+1. DATABASE
+
+Evaluate and implement PostgreSQL persistence.
+
+Use the existing architecture where practical.
+
+Recommended entities:
+
+* repositories
+* repository_revisions
+* experiments
+* changed_files
+* dependency_nodes
+* dependency_edges
+* predicted_tests
+* mutations
+* test_executions
+* evidence_records
+* experiment_comparisons
+* ai_explanations
+
+Use proper foreign keys, indexes and migrations.
+
+Avoid storing duplicate derived metrics when they can be safely calculated from immutable evidence.
+
+2. EXPERIMENT LIFECYCLE
+
+Implement:
+
+* Created.
+* Queued.
+* Running.
+* Completed.
+* Failed.
+* Cancelled.
+
+Do not report a completed experiment until its execution and evidence collection have finished.
+
+3. API
+
+Create documented endpoints for:
+
+GET /api/health
+
+GET /api/repositories
+
+POST /api/repositories
+
+GET /api/repositories/{id}
+
+GET /api/repositories/{id}/files
+
+GET /api/repositories/{id}/dependencies
+
+POST /api/experiments
+
+GET /api/experiments
+
+GET /api/experiments/{id}
+
+POST /api/experiments/{id}/replay
+
+POST /api/experiments/compare
+
+GET /api/experiments/{id}/evidence
+
+GET /api/blind-spots
+
+GET /api/code/inspect
+
+POST /api/ai/explain
+
+Adapt endpoint names to the existing implementation where necessary.
+
+4. API CONTRACTS
+
+Use typed request and response models.
+
+Validate all inputs.
+
+Return consistent error responses.
+
+Provide pagination for large collections.
+
+Do not return raw filesystem paths or secrets.
+
+5. STORAGE
+
+Do not assume serverless local storage is persistent.
+
+Use temporary storage for temporary analysis files.
+
+Persist experiment metadata and evidence in PostgreSQL or an appropriate durable object store.
+
+6. EXECUTION ARCHITECTURE
+
+Separate web requests from potentially long-running mutation experiments.
+
+Evaluate a background worker architecture.
+
+Use an isolated execution environment for untrusted repository code.
+
+Never run arbitrary uploaded code directly inside an unrestricted public API process.
+
+7. ENVIRONMENT CONFIGURATION
+
+Use environment variables for:
+
+* DATABASE_URL.
+* GEMINI_API_KEY.
+* TERRARIUM_API_TOKEN.
+* STORAGE configuration.
+* Execution timeouts.
+* Upload limits.
+* Allowed origins.
+* Worker configuration.
+
+Provide .env.example with placeholders only.
+
+Never commit secrets.
+
+DELIVERABLE:
+
+Working migrations, API endpoints, persistence tests, documented environment configuration and deployment architecture.
+
+---
+
+# 7. Master Prompt 6 — Make Every Feature Actually Work
+
+This is the prompt I would consider non-negotiable.
+
+AI coding tools often produce impressive interfaces while leaving the underlying interactions incomplete. This prompt specifically targets that problem.
+
+Act as an extremely strict independent QA engineer reviewing the entire TERRARIUM product.
+
+Your job is to prove that every feature works.
+
+Do not accept visual correctness as functional correctness.
+
+TEST THE COMPLETE APPLICATION.
+
+1. REPOSITORY WORKSPACE
+
+Verify:
+
+* Repository list loads from the backend.
+* Repository selection changes the active workspace.
+* File inventory is real.
+* Changed files are real.
+* Invalid repositories produce clear errors.
+
+2. OBSERVATORY
+
+Verify:
+
+* All metrics come from backend evidence.
+* Counts match underlying records.
+* MTIR matches the defined formula.
+* Empty states work.
+* Metric links open the correct evidence.
+
+3. EXPERIMENTS
+
+Verify:
+
+* Experiments can be created.
+* Experiments execute.
+* Results persist.
+* Experiment detail pages load.
+* Mutation outcomes match execution evidence.
+* Comparison works.
+* Replay creates a separate record.
+
+4. BLIND SPOTS
+
+Verify:
+
+* Surviving mutations appear.
+* Missed test failures appear.
+* Unresolved dependencies appear.
+* Each item references actual evidence.
+* Filtering and navigation work.
+
+5. INSPECT CODE
+
+Verify:
+
+* File selection works.
+* Source code is loaded from the repository.
+* Changed symbols are highlighted correctly.
+* Dependency paths are valid.
+* Test relationships are valid.
+* Graph nodes navigate to the correct records.
+
+6. GEMINI
+
+Verify:
+
+* Missing API key is handled.
+* Valid responses are displayed.
+* Invalid responses are rejected.
+* Timeouts are handled.
+* Gemini cannot overwrite deterministic results.
+* Explanations reference real evidence.
+
+7. SECURITY
+
+Test:
+
+* Path traversal.
+* Malicious ZIP entries.
+* Oversized uploads.
+* Unauthorized API requests.
+* Invalid identifiers.
+* Subprocess timeouts.
+* Unsafe repository execution.
+* Secret exposure.
+* Cross-origin restrictions.
+
+8. FRONTEND
+
+Test:
+
+* All buttons.
+* All links.
+* All navigation.
+* All filters.
+* All dialogs.
+* All forms.
+* All loading states.
+* All error states.
+* Responsive layouts.
+
+9. AUTOMATED TESTING
+
+Run:
+
+* Backend unit tests.
+* Backend integration tests.
+* Frontend tests.
+* API contract tests.
+* End-to-end browser tests.
+* Security tests.
+
+10. FINAL ACCEPTANCE REPORT
+
+Produce a table:
+
+| Feature | Test performed | Result | Evidence |
+| ------- | -------------- | ------ | -------- |
+
+Classify each feature:
+
+PASS
+FAIL
+PARTIAL
+NOT IMPLEMENTED
+NOT TESTED
+
+Do not hide failed tests.
+
+Do not claim that a feature works when it has not been tested.
+
+Fix every reproducible defect.
+
+After fixing defects, rerun the relevant tests.
+
+The task is complete only when the final report accurately describes what works and what remains incomplete.
+
+---
+
+# 8. Master Prompt 7 — Deployment and Production Readiness
+
+This matters because the earlier Vercel deployment failed. I would not repeat the same deployment strategy without checking the execution requirements.
+
+Vercel can host the web interface and suitable API routes, but mutation testing involves executing code and running test processes. That is a different workload from serving a normal dashboard.
+
+I recommend:
+
+| Component       | Recommended deployment                     |
+| --------------- | ------------------------------------------ |
+| Frontend        | Vercel                                     |
+| FastAPI API     | Cloud Run or a suitable persistent backend |
+| Mutation worker | Isolated container                         |
+| Database        | Supabase PostgreSQL                        |
+| Object storage  | Supabase Storage or equivalent             |
+| Gemini          | Server-side Google GenAI SDK               |
+
+This is a recommended architecture, not a claim that these services are already configured.
+
+Prepare TERRARIUM for a real public deployment.
+
+Do not deploy until the application passes its functional acceptance tests.
+
+FIRST: INSPECT THE DEPLOYMENT ENVIRONMENT.
+
+Determine:
+
+* Frontend framework.
+* Backend framework.
+* Python entrypoint.
+* Dependency installation.
+* Build process.
+* Environment variables.
+* Database requirements.
+* Background execution requirements.
+* Temporary storage requirements.
+* Long-running process requirements.
+
+VERCEL:
+
+If the frontend is compatible with Vercel, configure it as a separate frontend project.
+
+Do not deploy TERRARIUM into the MUTANT project.
+
+The Vercel project must be named TERRARIUM.
+
+Do not assume a Python mutation worker is suitable for Vercel serverless execution.
+
+BACKEND:
+
+Deploy FastAPI to an environment that supports the required runtime and execution model.
+
+Configure health checks.
+
+Configure appropriate timeouts.
+
+Configure CORS.
+
+Configure environment variables securely.
+
+WORKER:
+
+Deploy the mutation worker separately if required.
+
+Ensure it uses an isolated execution environment.
+
+DATABASE:
+
+Configure migrations.
+
+Verify connection handling.
+
+Verify persistent experiment history.
+
+SECURITY:
+
+* No secrets in GitHub.
+* No API keys in frontend code.
+* No unrestricted repository execution.
+* No public filesystem exposure.
+* No unrestricted upload handling.
+* No unnecessary debug endpoints.
+
+VERIFICATION:
+
+After deployment, test:
+
+1. Public landing page.
+2. Health endpoint.
+3. Repository loading.
+4. Demo experiment.
+5. Experiment results.
+6. Mutation ledger.
+7. Blind spots.
+8. Code inspection.
+9. Experiment persistence.
+10. Gemini explanation when configured.
+
+Check actual HTTP responses.
+
+Check application logs.
+
+Fix deployment errors.
+
+FINAL DELIVERABLE:
+
+Provide:
+
+* Live frontend URL.
+* Backend URL.
+* Health endpoint.
+* Database status.
+* Worker status.
+* Test report.
+* Deployment architecture.
+* Remaining limitations.
+
+Do not call the application production-ready unless these checks pass.
+
+---
+
+# 9. The final visual and functional acceptance criteria
+
+This is how I'd judge the finished TERRARIUM.
+
+| Area            | What must work                                  |
+| --------------- | ----------------------------------------------- |
+| Observatory     | Live experiment data and traceable metrics      |
+| Experiments     | Real experiment execution, history and replay   |
+| Blind Spots     | Actual surviving mutations and missed failures  |
+| Inspect Code    | Real source files, dependencies and call paths  |
+| Mutation Engine | Valid mutations and genuine test execution      |
+| MTIR            | Correctly calculated from evidence              |
+| Gemini          | Evidence-grounded explanations                  |
+| Database        | Persistent experiment records                   |
+| Security        | Restricted repository execution                 |
+| Deployment      | Publicly accessible, independently verified app |
+
+## 10. One additional feature I would add: Evidence Replay
+
+This is the feature that could make TERRARIUM more distinctive.
+
+Imagine a developer opens an experiment and sees:
+
+**Experiment #TR-00042**
+
+```text
+CHANGE DETECTED
+       |
+       v
+IMPACT PREDICTED
+       |
+       v
+TESTS SELECTED
+       |
+       v
+MUTATIONS GENERATED
+       |
+       v
+TESTS EXECUTED
+       |
+       v
+EVIDENCE COLLECTED
+       |
+       v
+RESULT VERIFIED
+```
+
+Each step is clickable.
+
+The developer can inspect exactly what happened, including the source change, dependency path, mutation, test command, output and final classification.
+
+This is not just another chart. It gives developers an auditable history of why TERRARIUM reached its conclusions.
+
+Implement this using the actual experiment records, not an animated sequence that merely looks like execution.
+
+---
+
+# 11. How to use these prompts in Google AI Studio
+
+Use the prompts in this order:
+
+| Order | Prompt                  | Expected output                           |
+| ----- | ----------------------- | ----------------------------------------- |
+| 1     | Project audit           | Full understanding of existing repository |
+| 2     | Intelligence engine     | Correct underlying analysis               |
+| 3     | Product UI/UX           | Complete interactive interface            |
+| 4     | Gemini integration      | Evidence interpretation                   |
+| 5     | Backend and persistence | Working APIs and durable storage          |
+| 6     | Functional verification | Test evidence and defect fixes            |
+| 7     | Deployment              | Verified live application                 |
+
+**Important working rules:**
+
+* Keep the existing GitHub repository as the source of truth.
+* Make changes in a separate branch.
+* Commit after each successfully tested phase.
+* Never overwrite the existing engine without reviewing it.
+* Ask AI Studio to show the files it changed.
+* Run tests after every major implementation stage.
+* Do not accept screenshots as proof of functionality.
+* Do not accept fabricated metrics or simulated experiment outcomes as real results.
+
+### My strongest recommendation
+
+Don't ask AI Studio to build all seven stages in one enormous generation. Use the seven prompts sequentially. After each stage, make it show the changed files, tests executed and outstanding defects before continuing.
+
+**The final goal isn't a better-looking screenshot. It's a developer who can give TERRARIUM a real code change, run a real experiment, inspect the evidence, discover a genuine blind spot and understand exactly how much confidence to place in the result.**
